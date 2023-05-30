@@ -247,7 +247,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 setTimeout(function() {
                   $('#grade-submissions-button').click();
                   gradeFormError('');
-              }, 225);
+                }, 225);
               });
         }
 
@@ -257,7 +257,11 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             var url = verifyUploadedFileUrl + '?student_id=' +
               row.data('student_id');
             $.get(url).success(function (res) {
-              console.log(res);
+              // Hide and open the modal for refreshed data
+              setTimeout(function() {
+                $('#grade-submissions-button').click();
+                gradeFormError('');
+              }, 225);
             });
         }
 

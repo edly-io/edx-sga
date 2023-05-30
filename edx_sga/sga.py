@@ -264,7 +264,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             "filename": upload.file.name,
             "mimetype": mimetypes.guess_type(upload.file.name)[0],
             "finalized": False,
-            "gptz_response": {},
+            "gptz_response": None,
         }
         student_item_dict = self.get_student_item_dict()
         submissions_api.create_submission(student_item_dict, answer)
@@ -594,7 +594,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                 status_code=400
             )
 
-        submission.answer['gptz_response'] = response.get('documents', [{}])[0]
+        submission.answer['gptz_response'] = response.get('documents', [None])[0]
         submission.save()
         return Response(json_body={'result': 'success'})
 
@@ -871,7 +871,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                     'timestamp': submission['created_at'].strftime(
                         DateTime.DATETIME_FORMAT
                     ),
-                    'gptz_response': submission['answer'].get('gptz_response', {}),
+                    'gptz_response': submission['answer'].get('gptz_response', None),
                     'score': score,
                     'approved': approved,
                     'needs_approval': instructor and needs_approval,
