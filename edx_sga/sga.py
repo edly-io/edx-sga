@@ -12,6 +12,7 @@ from contextlib import closing
 from zipfile import ZipFile
 
 import pkg_resources
+import requests
 import six
 import six.moves.urllib.error
 import six.moves.urllib.parse
@@ -34,6 +35,7 @@ from edx_sga.utils import (file_contents_iter, get_file_modified_time_utc,
                            get_file_storage_path, get_sha1,
                            is_finalized_submission, utcnow)
 from lms.djangoapps.courseware.models import StudentModule
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from safe_lxml import etree
 from student.models import user_by_anonymous_id
 from submissions import api as submissions_api
@@ -261,7 +263,8 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             "sha1": sha1,
             "filename": upload.file.name,
             "mimetype": mimetypes.guess_type(upload.file.name)[0],
-            "finalized": False
+            "finalized": False,
+            "gptz_response": {},
         }
         student_item_dict = self.get_student_item_dict()
         submissions_api.create_submission(student_item_dict, answer)
@@ -574,6 +577,43 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             }
         )
 
+    @XBlock.handler
+    def verify_uploaded_file_gptz(self, request, suffix=''):  # pylint: disable=unused-argument
+        require(self.is_course_staff())
+        submission = self.get_submission(request.params['student_id'])
+        answer = submission['answer']
+        path = self.file_storage_path(answer['sha1'], answer['filename'])
+        api_key = configuration_helpers.get_value('GPTZ_API_KEY')
+        response = self.gptz_file_predict(path, answer['mimetype'], api_key)
+        submission = Submission.objects.get(uuid=submission['uuid'])
+        if response.get('error'):
+            submission.answer['gptz_response'] = response['error']
+            submission.save()
+            return Response(
+                response['error'],
+                status_code=400
+            )
+
+        submission.answer['gptz_response'] = response.get('documents', [{}])[0]
+        submission.save()
+        return Response(json_body={'result': 'success'})
+
+    def gptz_file_predict(self, file_name, mime_type, api_key):
+        url = 'https://api.gptzero.me/v2/predict/files'
+        headers = {
+            'accept': 'application/json',
+        }
+        if api_key:
+            headers['X-Api-Key'] = api_key
+        file_path = default_storage.path(file_name)
+        f_open = default_storage.open(file_path, 'rb')
+        files = {
+            'files': (file_name, f_open, mime_type),
+        }
+
+        response = requests.post(url, headers=headers, files=files)
+        return response.json()
+
     def student_view(self, context=None):
         # pylint: disable=no-member
         """
@@ -831,6 +871,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                     'timestamp': submission['created_at'].strftime(
                         DateTime.DATETIME_FORMAT
                     ),
+                    'gptz_response': submission['answer'].get('gptz_response', {}),
                     'score': score,
                     'approved': approved,
                     'needs_approval': instructor and needs_approval,
