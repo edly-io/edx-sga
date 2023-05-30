@@ -605,8 +605,8 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         }
         if api_key:
             headers['X-Api-Key'] = api_key
-        file_path = default_storage.path(file_name)
-        f_open = default_storage.open(file_path, 'rb')
+
+        f_open = default_storage.open(file_name, 'rb')
         files = {
             'files': (file_name, f_open, mime_type),
         }
