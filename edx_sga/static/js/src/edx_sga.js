@@ -18,6 +18,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         var downloadSubmissionsUrl = runtime.handlerUrl(element, 'download_submissions');
         var prepareDownloadSubmissionsUrl = runtime.handlerUrl(element, 'prepare_download_submissions');
         var downloadSubmissionsStatusUrl = runtime.handlerUrl(element, 'download_submissions_status');
+        var verifyUploadedFileUrl = runtime.handlerUrl(element, 'verify_uploaded_file_gptz');
         var template = _.template($(element).find("#sga-tmpl").text());
         var gradingTemplate;
         var preparingSubmissionsMsg = gettext(
@@ -153,6 +154,13 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 .leanModal({closeButton: '#enter-grade-cancel'})
                 .on('click', handleGradeEntry);
 
+            $(element).find('.verify-content-button')
+                .on('click', handleTextVerification);
+
+            // Set up Json Viewer modal
+            $(element).find('a.jv-modal')
+                .on('click', handleJvModal)
+
             // Set up annotated file upload
             $(element).find('#grade-info .fileupload').each(function() {
                 var row = $(this).parents("tr");
@@ -225,6 +233,32 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         function gradeFormError(error) {
             var form = $(element).find("#enter-grade-form");
             form.find('.error').html(error);
+        }
+
+        /* Click event handler for "View Details" */
+        function handleJvModal() {
+            $(element).find("#jv-modal").css("display", "block");
+
+            $(element).find('.jv-close')
+              .on('click', function () {
+                $(element).find("#jv-modal").css("display", "none");
+
+                // Hide and open the modal for refreshed data
+                setTimeout(function() {
+                  $('#grade-submissions-button').click();
+                  gradeFormError('');
+              }, 225);
+              });
+        }
+
+        /* Click event handler for "Verify Content" */
+        function handleTextVerification() {
+            var row = $(this).parents("tr");
+            var url = verifyUploadedFileUrl + '?student_id=' +
+              row.data('student_id');
+            $.get(url).success(function (res) {
+              console.log(res);
+            });
         }
 
         /* Click event handler for "enter grade" */
